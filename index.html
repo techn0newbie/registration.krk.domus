@@ -559,7 +559,13 @@ function stopScanner() {
 }
 
 async function processQR(text) {
-  stopScanner();
+  // Show immediate visual feedback without stopping camera
+  const div = document.getElementById('scan-result');
+  div.style.display = 'block';
+  div.style.background = 'var(--green-light)';
+  div.style.borderColor = '#9FE1CB';
+  div.innerHTML = '<p style="color:var(--green-dark);font-size:0.9rem;font-weight:600">📷 QR terdeteksi — ⏳ Memproses...</p>';
+  div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   await checkAttendance(text);
 }
 
@@ -572,9 +578,15 @@ async function manualCheck() {
 async function checkAttendance(qrText) {
   const div = document.getElementById('scan-result');
   div.style.display = 'block';
-  div.style.background = 'var(--green-light)';
-  div.style.borderColor = '#9FE1CB';
-  div.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem">⏳ Memproses...</p>';
+
+  // Check if URL is still placeholder
+  if (SCRIPT_URL.includes('GANTI_DENGAN_URL_ANDA')) {
+    div.style.background = '#FCEBEB'; div.style.borderColor = '#F7C1C1';
+    div.innerHTML = '<div class="scan-name">⚙️ URL Belum Dikonfigurasi</div>' +
+      '<div class="scan-detail">SCRIPT_URL di file index.html masih berisi placeholder.<br>Ganti dengan URL Apps Script Anda yang sebenarnya.</div>' +
+      '<span class="scan-badge badge-error">Setup Diperlukan</span>';
+    return;
+  }
 
   try {
     const url  = SCRIPT_URL + '?' + new URLSearchParams({ action: 'checkin', qr: qrText });
@@ -600,9 +612,13 @@ async function checkAttendance(qrText) {
         '<div class="scan-detail">' + (data.message || 'Peserta tidak ditemukan') + '</div>' +
         '<span class="scan-badge badge-error">Gagal</span>';
     }
+    div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch(e) {
     div.style.background = '#FCEBEB'; div.style.borderColor = '#F7C1C1';
-    div.innerHTML = '<div class="scan-name">❌ Gagal Terhubung</div><div class="scan-detail">Periksa koneksi internet</div><span class="scan-badge badge-error">Error</span>';
+    div.innerHTML = '<div class="scan-name">❌ Gagal Terhubung</div>' +
+      '<div class="scan-detail">Periksa koneksi internet atau URL Apps Script Anda.<br><small style="color:#aaa">Detail: ' + e.message + '</small></div>' +
+      '<span class="scan-badge badge-error">Error</span>';
+    div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 }
 
