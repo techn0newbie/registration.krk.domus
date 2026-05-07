@@ -266,6 +266,7 @@
         </p>
         <video id="scanner-video" autoplay playsinline muted></video>
         <canvas id="scanner-canvas" style="display:none"></canvas>
+        <div id="scan-indicator" style="display:none;margin-top:0.5rem;padding:0.4rem 0.75rem;background:#e8f5ee;border-radius:8px;font-size:0.78rem;color:var(--text-muted);text-align:center">📡 Scanner aktif — arahkan QR ke kamera</div>
         <div style="display:flex;gap:0.5rem;margin-top:1rem">
           <button class="btn-primary" id="start-scan-btn" onclick="startScanner()" style="margin-top:0">📷 Aktifkan Kamera</button>
           <button class="btn-primary" id="stop-scan-btn" onclick="stopScanner()" style="display:none;margin-top:0;background:#dc2626">⏹ Stop</button>
@@ -523,25 +524,43 @@ async function startScanner() {
     video.srcObject = mediaStream;
     document.getElementById('start-scan-btn').style.display = 'none';
     document.getElementById('stop-scan-btn').style.display  = 'block';
+    document.getElementById('scan-indicator').style.display = 'block';
 
     const canvas = document.getElementById('scanner-canvas');
-    const ctx    = canvas.getContext('2d');
-    let lastCode = '', lastTime = 0;
+    const ctx    = canvas.getContext('2d', { willReadFrequently: true });
+    let lastCode = '', lastTime = 0, isProcessing = false;
+
+    // Wait for video to be truly ready on mobile
+    await new Promise(resolve => {
+      if (video.readyState >= 2) { resolve(); return; }
+      video.addEventListener('canplay', resolve, { once: true });
+    });
+
     scannerInterval = setInterval(() => {
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
-        try {
-          const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(img.data, img.width, img.height);
-          const now  = Date.now();
-          if (code && (code.data !== lastCode || now - lastTime > 4000)) {
-            lastCode = code.data; lastTime = now;
-            processQR(code.data);
-          }
-        } catch(e) {}
-      }
-    }, 600);
+      if (isProcessing) return;
+      if (video.readyState < 2 || video.videoWidth === 0) return;
+
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      try {
+        const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(img.data, img.width, img.height, {
+          inversionAttempts: 'dontInvert'
+        });
+        const now = Date.now();
+        if (code && code.data && (code.data !== lastCode || now - lastTime > 4000)) {
+          lastCode = code.data;
+          lastTime = now;
+          isProcessing = true;
+          processQR(code.data).finally(() => {
+            // Allow rescan after 4 seconds
+            setTimeout(() => { isProcessing = false; }, 4000);
+          });
+        }
+      } catch(e) {}
+    }, 300);
   } catch(e) {
     alert('Tidak dapat mengakses kamera.\nPastikan izin kamera sudah diaktifkan di browser Anda.');
   }
@@ -556,6 +575,7 @@ function stopScanner() {
   const x = document.getElementById('stop-scan-btn');
   if (s) s.style.display = 'block';
   if (x) x.style.display = 'none';
+  const ind = document.getElementById('scan-indicator'); if (ind) ind.style.display = 'none';
 }
 
 async function processQR(text) {
