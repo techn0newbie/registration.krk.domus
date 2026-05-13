@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pendaftaran Peserta Event</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green: #1D9E75; --green-light: #E1F5EE; --green-dark: #085041;
+    --teal: #0F6E56; --amber: #BA7517; --amber-light: #FAEEDA;
+    --gray: #888780; --gray-light: #F1EFE8; --text: #2C2C2A; --text-muted: #5F5E5A;
+    --red: #A32D2D; --red-light: #FCEBEB;
+  }
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f7f4; color: var(--text); min-height: 100vh; }
+
+  .header { background: var(--green-dark); color: white; padding: 2rem 1.5rem; text-align: center; }
+  .header h1 { font-size: 1.6rem; font-weight: 700; }
+  .header p { font-size: 0.88rem; opacity: 0.8; margin-top: 0.4rem; }
+  .quota-bar-wrap { margin-top: 1.25rem; }
+  .quota-label { font-size: 0.8rem; opacity: 0.7; margin-bottom: 0.4rem; }
+  .quota-bar { background: rgba(255,255,255,0.2); border-radius: 99px; height: 10px; overflow: hidden; }
+  .quota-fill { background: #9FE1CB; border-radius: 99px; height: 100%; transition: width 0.6s ease; }
+  .quota-count { font-size: 0.82rem; margin-top: 0.4rem; opacity: 0.85; }
+
+  .container { max-width: 540px; margin: 2rem auto; padding: 0 1rem 3rem; }
+
+  .tabs { display: flex; gap: 0; border-radius: 12px; overflow: hidden; border: 1.5px solid #b0d8c8; margin-bottom: 1.5rem; }
+  .tab { flex: 1; padding: 0.7rem 0.3rem; text-align: center; font-size: 0.8rem; font-weight: 600; cursor: pointer; background: white; color: var(--text-muted); border: none; transition: background 0.2s, color 0.2s; line-height: 1.3; }
+  .tab.active { background: var(--green); color: white; }
+
+  .card { background: white; border-radius: 16px; padding: 1.75rem; border: 1px solid #d8eee6; margin-bottom: 1.5rem; }
+
+  .field { margin-bottom: 1.1rem; }
+  .field label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.4rem; }
+  .field label .opt { font-weight: 400; text-transform: none; color: #bbb; font-size: 0.75rem; }
+  .field input { width: 100%; padding: 0.7rem 1rem; border: 1.5px solid #d0e8dc; border-radius: 10px; font-size: 0.95rem; color: var(--text); background: white; outline: none; transition: border 0.2s, box-shadow 0.2s; }
+  .field input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
+  .field input::placeholder { color: #ccc; }
+
+  .btn-primary { width: 100%; padding: 0.9rem; background: var(--green); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 0.5rem; transition: background 0.2s, transform 0.1s; }
+  .btn-primary:hover { background: var(--teal); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+  .btn-outline { width: 100%; padding: 0.8rem; background: white; color: var(--green-dark); border: 1.5px solid var(--green); border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 0.75rem; transition: background 0.2s; }
+  .btn-outline:hover { background: var(--green-light); }
+
+  .alert { padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.88rem; margin-top: 0.75rem; line-height: 1.5; }
+  .alert-error   { background: #FCEBEB; color: #A32D2D; border: 1px solid #F7C1C1; }
+  .alert-success { background: var(--green-light); color: var(--green-dark); border: 1px solid #9FE1CB; }
+  .alert-warning { background: var(--amber-light); color: #633806; border: 1px solid #FAC775; }
+
+  /* ── INLINE QR RESULT ── */
+  .inline-result { display: none; background: white; border-radius: 16px; border: 2px solid var(--green); overflow: hidden; margin-top: 1.25rem; }
+  .ir-header { background: var(--green-dark); color: white; padding: 1.25rem 1.5rem; text-align: center; }
+  .ir-header h2 { font-size: 1.1rem; font-weight: 700; }
+  .ir-header p { font-size: 0.82rem; opacity: 0.8; margin-top: 0.2rem; }
+  .ir-body { padding: 1.5rem; text-align: center; }
+  .pid-badge { display: inline-block; background: var(--green-light); color: var(--green-dark); font-family: monospace; font-size: 1.4rem; font-weight: 800; letter-spacing: 2px; padding: 0.45rem 1.25rem; border-radius: 10px; border: 1.5px solid #9FE1CB; margin-bottom: 1.1rem; }
+  .qr-center { display: flex; justify-content: center; margin-bottom: 0.75rem; }
+  .qr-center canvas, .qr-center img { border-radius: 10px; border: 5px solid var(--green-light); }
+  .res-name { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+  .res-detail { font-size: 0.83rem; color: var(--text-muted); margin-top: 0.2rem; margin-bottom: 1.1rem; }
+
+  .action-row { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
+  .wa-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.1rem; background: #25D366; color: white; border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer; border: none; }
+  .wa-btn:hover { background: #1ebe5d; }
+  .print-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; background: white; color: var(--green-dark); border: 1.5px solid var(--green); border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+  .print-btn:hover { background: var(--green-light); }
+  .reset-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1rem; background: white; color: var(--text-muted); border: 1.5px solid #ddd; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+  .reset-btn:hover { background: #f5f5f5; }
+
+  /* ── LOOKUP TAB ── */
+  .lookup-wrap { background: white; border-radius: 16px; padding: 1.75rem; border: 1px solid #d8eee6; }
+  .lookup-wrap h3 { font-size: 1rem; font-weight: 700; color: var(--green-dark); margin-bottom: 0.3rem; }
+  .lookup-wrap > p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.6; }
+  .search-row { display: flex; gap: 0.5rem; }
+  .search-row input { flex: 1; padding: 0.7rem 1rem; border: 1.5px solid #d0e8dc; border-radius: 10px; font-size: 0.92rem; outline: none; transition: border 0.2s; }
+  .search-row input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
+  .search-row button { padding: 0.7rem 1rem; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; white-space: nowrap; }
+  .search-row button:hover { background: var(--teal); }
+
+  .lq-card { display: none; margin-top: 1.25rem; background: white; border: 2px solid var(--green); border-radius: 14px; overflow: hidden; }
+  .lq-header { background: var(--green-dark); color: white; padding: 1rem 1.25rem; text-align: center; }
+  .lq-header .lq-label { font-size: 0.8rem; opacity: 0.75; }
+  .lq-header .lq-name { font-size: 1.1rem; font-weight: 700; margin-top: 0.1rem; }
+  .lq-body { padding: 1.25rem; text-align: center; }
+  .lq-id { font-family: monospace; font-size: 1.3rem; font-weight: 800; color: var(--green); letter-spacing: 2px; margin-bottom: 0.9rem; }
+  .lq-sub { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.5rem; margin-bottom: 1rem; }
+
+  /* ── SCANNER / PASSWORD GATE ── */
+  .pw-gate { background: white; border-radius: 16px; padding: 2.5rem 1.75rem; border: 1px solid #d8eee6; text-align: center; }
+  .lock-icon { font-size: 2.8rem; margin-bottom: 0.75rem; }
+  .pw-gate h3 { font-size: 1.1rem; font-weight: 700; color: var(--green-dark); margin-bottom: 0.3rem; }
+  .pw-gate p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+  .pw-field { display: flex; flex-direction: column; gap: 0.75rem; max-width: 260px; margin: 0 auto; }
+  .pw-field input { width: 100%; padding: 0.75rem 1rem; border: 1.5px solid #d0e8dc; border-radius: 10px; font-size: 1.2rem; text-align: center; letter-spacing: 6px; outline: none; transition: border 0.2s; }
+  .pw-field input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
+  .pw-field button { width: 100%; padding: 0.8rem 1rem; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer; }
+  .pw-error { color: var(--red); font-size: 0.85rem; margin-top: 0.85rem; min-height: 1.2em; }
+  .pw-attempts { font-size: 0.78rem; color: #bbb; margin-top: 0.3rem; }
+
+  .scanner-content { display: none; }
+  .scanner-wrap { background: white; border-radius: 16px; padding: 1.75rem; border: 1px solid #d8eee6; }
+  .scanner-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .panitia-badge { font-size: 0.8rem; color: var(--green-dark); background: var(--green-light); padding: 0.25rem 0.75rem; border-radius: 99px; border: 1px solid #9FE1CB; }
+  .logout-btn { font-size: 0.8rem; color: var(--red); background: var(--red-light); border: 1px solid #F7C1C1; border-radius: 99px; padding: 0.25rem 0.75rem; cursor: pointer; font-weight: 600; }
+  #scanner-video { width: 100%; border-radius: 10px; background: #111; aspect-ratio: 4/3; object-fit: cover; }
+  .scan-result { margin-top: 1rem; padding: 1rem 1.1rem; border-radius: 10px; border: 1px solid #9FE1CB; background: var(--green-light); display: none; }
+  .scan-name   { font-weight: 700; font-size: 1rem; color: var(--green-dark); }
+  .scan-detail { font-size: 0.84rem; color: var(--text-muted); margin-top: 0.2rem; }
+  .scan-badge  { display: inline-block; padding: 0.2rem 0.75rem; border-radius: 99px; font-size: 0.75rem; font-weight: 700; margin-top: 0.5rem; }
+  .badge-ok      { background: var(--green); color: white; }
+  .badge-already { background: var(--amber-light); color: #633806; border: 1px solid #FAC775; }
+  .badge-error   { background: #FCEBEB; color: #A32D2D; border: 1px solid #F7C1C1; }
+  .manual-row  { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  .manual-row input { flex: 1; padding: 0.65rem 0.9rem; border: 1.5px solid #d0e8dc; border-radius: 10px; font-size: 0.9rem; outline: none; }
+  .manual-row input:focus { border-color: var(--green); }
+  .manual-row button { padding: 0.65rem 1rem; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+  .footer { text-align: center; font-size: 0.75rem; color: #bbb; padding: 2rem 0 0; }
+
+  @media print {
+    body * { visibility: hidden; }
+    .inline-result, .inline-result * { visibility: visible; }
+    .inline-result { position: fixed; top: 0; left: 0; width: 100%; border: none; display: block !important; }
+    .action-row, .reset-btn { display: none !important; }
+    .lq-card, .lq-card * { visibility: visible; }
+    .lq-card { position: fixed; top: 0; left: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<img src="Pendaftaran_KRK.jpg" alt="Mukjizat dan Kuasa Roh Kudus - KRK Penyembuhan" style="width:100%;display:block;max-height:180px;object-fit:cover;object-position:center top;">
+
+<div class="header">
+  <h1>📋 Pendaftaran Peserta</h1>
+  <p>Kebangunan Rohani Katolik (KRK) Penyembuhan • 5 September 2026 • Yogyakarta</p>
+  <div class="quota-bar-wrap">
+    <div class="quota-label">Kuota Peserta</div>
+    <div class="quota-bar"><div class="quota-fill" id="quota-fill" style="width:0%"></div></div>
+    <div class="quota-count" id="quota-count">Memuat data...</div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('daftar')">📝 Daftar</button>
+    <button class="tab" onclick="showTab('cari')">🔍 Cari QR</button>
+    <button class="tab" onclick="showTab('scan')">📷 Scan</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       TAB 1 — PENDAFTARAN
+  ═══════════════════════════════════════ -->
+  <div id="tab-daftar">
+    <div class="card">
+      <div class="field">
+        <label>Nama Lengkap *</label>
+        <input type="text" id="nama" placeholder="Masukkan nama lengkap" maxlength="100" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Nomor WhatsApp / HP *</label>
+        <input type="tel" id="phone" placeholder="Contoh: 08123456789" maxlength="20" autocomplete="tel">
+      </div>
+      <div class="field">
+        <label>Kota Asal *</label>
+        <input type="text" id="email" placeholder="Contoh: Yogyakarta, Jakarta, Surabaya" maxlength="100" autocomplete="address-level2">
+      </div>
+      <div class="field">
+        <label>Persekutuan Doa <span class="opt">(opsional)</span></label>
+        <input type="text" id="pd" placeholder="Nama persekutuan doa Anda" maxlength="100">
+      </div>
+      <div id="form-alert"></div>
+      <button class="btn-primary" id="submit-btn" onclick="submitForm()">Daftar Sekarang →</button>
+    </div>
+
+    <!-- QR CODE MUNCUL DI SINI SETELAH BERHASIL DAFTAR -->
+    <div class="inline-result" id="inline-result">
+      <div class="ir-header">
+        <h2>✅ Pendaftaran Berhasil!</h2>
+        <p>Screenshot atau cetak QR Code ini untuk absensi hari H</p>
+      </div>
+      <div class="ir-body">
+        <div class="pid-badge" id="res-id"></div>
+        <div class="qr-center" id="qrcode-main"></div>
+        <div class="res-name" id="res-nama"></div>
+        <div class="res-detail" id="res-detail"></div>
+        <div class="action-row">
+          <button class="wa-btn" onclick="shareWA('reg')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.532 5.845L0 24l6.335-1.51A11.942 11.942 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.877 9.877 0 01-5.031-1.375l-.361-.214-3.741.981.999-3.648-.235-.374A9.859 9.859 0 012.106 12C2.106 6.58 6.58 2.106 12 2.106c5.42 0 9.894 4.474 9.894 9.894 0 5.42-4.474 9.894-9.894 9.894z"/></svg>
+            Kirim via WhatsApp
+          </button>
+          <button class="print-btn" onclick="window.print()">🖨️ Cetak</button>
+          <button class="reset-btn" onclick="resetForm()">← Daftar Lagi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       TAB 2 — CARI QR CODE
+  ═══════════════════════════════════════ -->
+  <div id="tab-cari" style="display:none">
+    <div class="lookup-wrap">
+      <h3>🔍 Cari QR Code Saya</h3>
+      <p>Sudah terdaftar tapi QR Code hilang atau terlupa? Masukkan nomor WhatsApp atau ID peserta Anda untuk menampilkan kembali QR Code.</p>
+      <div class="search-row">
+        <input type="text" id="lookup-input" placeholder="No. WhatsApp atau EVT-000001"
+          maxlength="50" onkeydown="if(event.key==='Enter') doLookup()">
+        <button onclick="doLookup()">Cari</button>
+      </div>
+      <div id="lookup-alert"></div>
+
+      <div class="lq-card" id="lq-card">
+        <div class="lq-header">
+          <div class="lq-label">QR Code Peserta</div>
+          <div class="lq-name" id="lq-name"></div>
+        </div>
+        <div class="lq-body">
+          <div class="lq-id" id="lq-id"></div>
+          <div class="qr-center" id="qrcode-lookup"></div>
+          <div class="lq-sub" id="lq-sub"></div>
+          <div class="action-row">
+            <button class="wa-btn" onclick="shareWA('lookup')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.532 5.845L0 24l6.335-1.51A11.942 11.942 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.877 9.877 0 01-5.031-1.375l-.361-.214-3.741.981.999-3.648-.235-.374A9.859 9.859 0 012.106 12C2.106 6.58 6.58 2.106 12 2.106c5.42 0 9.894 4.474 9.894 9.894 0 5.42-4.474 9.894-9.894 9.894z"/></svg>
+              Kirim WA
+            </button>
+            <button class="print-btn" onclick="window.print()">🖨️ Cetak</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       TAB 3 — SCAN KEHADIRAN (password protected)
+  ═══════════════════════════════════════ -->
+  <div id="tab-scan" style="display:none">
+
+    <!-- PASSWORD GATE -->
+    <div class="pw-gate" id="pw-gate">
+      <div class="lock-icon">🔒</div>
+      <h3>Area Panitia</h3>
+      <p>Tab ini hanya untuk operator pendaftaran.<br>Masukkan kata sandi untuk melanjutkan.</p>
+      <div class="pw-field">
+        <input type="password" id="pw-input" placeholder="••••••" maxlength="10"
+          onkeydown="if(event.key==='Enter') checkPassword()">
+        <button onclick="checkPassword()">Masuk</button>
+      </div>
+      <div class="pw-error" id="pw-error"></div>
+      <div class="pw-attempts" id="pw-attempts"></div>
+    </div>
+
+    <!-- SCANNER (hanya tampil setelah password benar) -->
+    <div class="scanner-content" id="scanner-content">
+      <div class="scanner-wrap">
+        <div class="scanner-topbar">
+          <span class="panitia-badge">🔓 Mode Panitia Aktif</span>
+          <button class="logout-btn" onclick="lockScanner()">🔒 Kunci</button>
+        </div>
+        <p style="font-size:0.88rem;color:var(--text-muted);text-align:center;margin-bottom:1rem">
+          Arahkan kamera ke QR Code peserta untuk mencatat kehadiran
+        </p>
+        <video id="scanner-video" autoplay playsinline muted></video>
+        <div id="scan-indicator" style="display:none;margin-top:0.5rem;padding:0.4rem 0.75rem;background:#e8f5ee;border-radius:8px;font-size:0.78rem;color:var(--text-muted);text-align:center">📡 Scanner aktif — arahkan QR ke kamera</div>
+        <div style="display:flex;gap:0.5rem;margin-top:1rem">
+          <button class="btn-primary" id="start-scan-btn" onclick="startScanner()" style="margin-top:0">📷 Aktifkan Kamera</button>
+          <button class="btn-primary" id="stop-scan-btn" onclick="stopScanner()" style="display:none;margin-top:0;background:#dc2626">⏹ Stop</button>
+        </div>
+        <div class="scan-result" id="scan-result"></div>
+        <div style="margin-top:1.25rem;border-top:1px solid #e8f5ee;padding-top:1.25rem">
+          <label style="font-size:0.8rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:0.4rem">Input ID Manual</label>
+          <div class="manual-row">
+            <input type="text" id="manual-id" placeholder="Contoh: EVT-000001">
+            <button onclick="manualCheck()">Cek Kehadiran</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">Sistem Pendaftaran Event • Data tersimpan di Google Sheets</div>
+</div>
+
+<script>
+// ============================================================
+//  KONFIGURASI — sesuaikan sebelum deploy
+// ============================================================
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHEwrl64AwJN-5k3lidgsFIbQcbfytaECjRBJBCwrC4BjI3j-dMqNEv_viOKoNrEn_CA/exec';
+const MAX_QUOTA  = 1800;
+const SCANNER_PW = '778899';
+const MAX_TRIES  = 5;
+
+// ── state ──
+let registeredData = null;
+let lookupData     = null;
+let codeReader     = null;   // ZXing reader instance
+let pwTries        = 0;
+
+// ============================================================
+//  QUOTA
+// ============================================================
+async function loadQuota() {
+  try {
+    const res  = await fetch(SCRIPT_URL + '?action=quota');
+    const data = await res.json();
+    const cnt  = data.count || 0;
+    const pct  = Math.min((cnt / MAX_QUOTA) * 100, 100).toFixed(1);
+    document.getElementById('quota-fill').style.width = pct + '%';
+    document.getElementById('quota-count').textContent =
+      cnt.toLocaleString('id-ID') + ' / ' + MAX_QUOTA.toLocaleString('id-ID') + ' peserta terdaftar';
+    if (cnt >= MAX_QUOTA) {
+      document.getElementById('submit-btn').disabled = true;
+      showAlert('form-alert', '⚠️ Maaf, kuota pendaftaran sudah penuh.', 'warning');
+    }
+  } catch(e) {
+    document.getElementById('quota-count').textContent = 'Tidak dapat memuat data';
+  }
+}
+
+// ============================================================
+//  SUBMIT FORM
+// ============================================================
+async function submitForm() {
+  const nama  = document.getElementById('nama').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const pd    = document.getElementById('pd').value.trim();
+
+  if (!nama)  { showAlert('form-alert', 'Nama lengkap wajib diisi.', 'error'); return; }
+  if (!phone) { showAlert('form-alert', 'Nomor WhatsApp / HP wajib diisi.', 'error'); return; }
+  if (!/^[0-9+\-\s]{8,20}$/.test(phone)) {
+    showAlert('form-alert', 'Format nomor tidak valid. Gunakan angka saja (contoh: 08123456789).', 'error');
+    return;
+  }
+  if (!email) { showAlert('form-alert', 'Kota asal wajib diisi.', 'error'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Mendaftarkan...';
+  clearAlert('form-alert');
+
+  try {
+    const url  = SCRIPT_URL + '?' + new URLSearchParams({ action: 'register', nama, phone, email, pd });
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      registeredData = data;
+      renderInlineQR(data);
+      loadQuota();
+    } else if (data.status === 'full') {
+      showAlert('form-alert', '⚠️ Kuota pendaftaran sudah penuh.', 'warning');
+      btn.disabled = false; btn.textContent = 'Daftar Sekarang →';
+    } else if (data.status === 'duplicate') {
+      showAlert('form-alert',
+        '⚠️ Nomor HP ini sudah terdaftar (ID: <strong>' + data.id + '</strong>).<br>' +
+        'Gunakan tab <em>🔍 Cari QR</em> untuk menampilkan QR Code Anda.', 'warning');
+      btn.disabled = false; btn.textContent = 'Daftar Sekarang →';
+    } else {
+      showAlert('form-alert', '❌ ' + (data.message || 'Terjadi kesalahan, coba lagi.'), 'error');
+      btn.disabled = false; btn.textContent = 'Daftar Sekarang →';
+    }
+  } catch(e) {
+    showAlert('form-alert', '❌ Gagal terhubung ke server. Periksa koneksi internet Anda.', 'error');
+    btn.disabled = false; btn.textContent = 'Daftar Sekarang →';
+  }
+}
+
+// ============================================================
+//  RENDER INLINE QR (tab 1, bawah form)
+// ============================================================
+function renderInlineQR(data) {
+  document.getElementById('res-id').textContent   = data.id;
+  document.getElementById('res-nama').textContent = data.nama;
+  document.getElementById('res-detail').textContent =
+    (data.pd ? data.pd + '  •  ' : '') + data.phone + (data.email ? '  •  ' + data.email : '');
+
+  document.getElementById('qrcode-main').innerHTML = '';
+  new QRCode(document.getElementById('qrcode-main'), {
+    text: data.id + '|' + data.nama + '|' + data.phone,
+    width: 220, height: 220,
+    colorDark: '#085041', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  const el = document.getElementById('inline-result');
+  el.style.display = 'block';
+  setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+}
+
+// ============================================================
+//  WHATSAPP SHARE
+// ============================================================
+function shareWA(mode) {
+  const d = mode === 'reg' ? registeredData : lookupData;
+  if (!d) return;
+  const header = mode === 'reg' ? '✅ *Pendaftaran Berhasil!*' : '🔍 *QR Code Peserta Ditemukan*';
+  const msg =
+    header + '\n\n' +
+    '🪪 *ID Peserta:* `' + d.id + '`\n' +
+    '👤 *Nama:* ' + d.nama + '\n' +
+    (d.pd ? '🙏 *Persekutuan Doa:* ' + d.pd + '\n' : '') +
+    '📱 *No HP:* ' + d.phone + '\n\n' +
+    '📌 Tunjukkan QR Code ini saat hari H untuk absensi.\n_(Screenshot halaman ini atau cetak)_';
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+// ============================================================
+//  RESET FORM
+// ============================================================
+function resetForm() {
+  ['nama','phone','email','pd'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('inline-result').style.display = 'none';
+  document.getElementById('qrcode-main').innerHTML = '';
+  registeredData = null;
+  clearAlert('form-alert');
+  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('submit-btn').textContent = 'Daftar Sekarang →';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============================================================
+//  LOOKUP / CARI QR
+// ============================================================
+async function doLookup() {
+  const q = document.getElementById('lookup-input').value.trim();
+  if (!q) { showAlert('lookup-alert', 'Masukkan nomor HP atau ID peserta terlebih dahulu.', 'error'); return; }
+
+  clearAlert('lookup-alert');
+  document.getElementById('lq-card').style.display = 'none';
+
+  try {
+    const url  = SCRIPT_URL + '?' + new URLSearchParams({ action: 'lookup', query: q });
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (data.status === 'found') {
+      lookupData = data;
+      document.getElementById('lq-name').textContent = data.nama;
+      document.getElementById('lq-id').textContent   = data.id;
+      document.getElementById('lq-sub').textContent  = (data.pd ? data.pd + '  •  ' : '') + data.phone;
+
+      document.getElementById('qrcode-lookup').innerHTML = '';
+      new QRCode(document.getElementById('qrcode-lookup'), {
+        text: data.id + '|' + data.nama + '|' + data.phone,
+        width: 200, height: 200,
+        colorDark: '#085041', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      const card = document.getElementById('lq-card');
+      card.style.display = 'block';
+      setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+    } else {
+      showAlert('lookup-alert',
+        '❌ Data tidak ditemukan. Pastikan nomor HP atau ID yang Anda masukkan sudah benar.', 'error');
+    }
+  } catch(e) {
+    showAlert('lookup-alert', '❌ Gagal terhubung. Periksa koneksi internet Anda.', 'error');
+  }
+}
+
+// ============================================================
+//  PASSWORD GATE
+// ============================================================
+function checkPassword() {
+  if (pwTries >= MAX_TRIES) return;
+  const val = document.getElementById('pw-input').value;
+  document.getElementById('pw-input').value = '';
+
+  if (val === SCANNER_PW) {
+    pwTries = 0;
+    document.getElementById('pw-gate').style.display    = 'none';
+    document.getElementById('scanner-content').style.display = 'block';
+    document.getElementById('pw-error').textContent    = '';
+    document.getElementById('pw-attempts').textContent = '';
+  } else {
+    pwTries++;
+    const left = MAX_TRIES - pwTries;
+    document.getElementById('pw-error').textContent =
+      left > 0 ? '❌ Kata sandi salah.' : '🚫 Terlalu banyak percobaan. Coba lagi nanti.';
+    document.getElementById('pw-attempts').textContent =
+      left > 0 ? left + ' percobaan tersisa' : '';
+    if (left <= 0) document.getElementById('pw-input').disabled = true;
+  }
+}
+
+function lockScanner() {
+  stopScanner();
+  document.getElementById('pw-gate').style.display    = 'block';
+  document.getElementById('scanner-content').style.display = 'none';
+  document.getElementById('pw-input').disabled = false;
+  document.getElementById('pw-error').textContent    = '';
+  document.getElementById('pw-attempts').textContent = '';
+  pwTries = 0;
+}
+
+// ============================================================
+//  TABS
+// ============================================================
+function showTab(tab) {
+  ['daftar','cari','scan'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = (t === tab) ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['daftar','cari','scan'][i] === tab);
+  });
+  if (tab !== 'scan') stopScanner();
+}
+
+// ============================================================
+//  SCANNER — ZXing (far more reliable on mobile than jsQR)
+// ============================================================
+async function startScanner() {
+  try {
+    codeReader = new ZXing.BrowserMultiFormatReader();
+
+    const videoEl = document.getElementById('scanner-video');
+    document.getElementById('start-scan-btn').style.display = 'none';
+    document.getElementById('stop-scan-btn').style.display  = 'block';
+    document.getElementById('scan-indicator').style.display = 'block';
+
+    // Get rear camera using standard browser API (works on all ZXing versions)
+    let deviceId = undefined;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(d => d.kind === 'videoinput');
+      if (cameras.length > 1) {
+        // Prefer rear/back/environment camera
+        const rear = cameras.find(d => /back|rear|environment/i.test(d.label));
+        deviceId = rear ? rear.deviceId : cameras[cameras.length - 1].deviceId;
+      }
+    } catch(e) { /* use default camera if enumeration fails */ }
+
+    let lastCode = '';
+    let lastTime = 0;
+
+    await codeReader.decodeFromVideoDevice(deviceId, videoEl, (result, err) => {
+      if (result) {
+        const text = result.getText();
+        const now  = Date.now();
+        if (text !== lastCode || now - lastTime > 5000) {
+          lastCode = text;
+          lastTime = now;
+          processQR(text);
+        }
+      }
+      // ZXing fires NotFoundException continuously when no QR visible — safe to ignore
+    });
+
+  } catch(e) {
+    alert('Tidak dapat mengakses kamera.\nPastikan izin kamera sudah diaktifkan.\n\nDetail: ' + e.message);
+  }
+}
+
+function stopScanner() {
+  if (codeReader) {
+    codeReader.reset();
+    codeReader = null;
+  }
+  const video = document.getElementById('scanner-video');
+  if (video) video.srcObject = null;
+  const s = document.getElementById('start-scan-btn');
+  const x = document.getElementById('stop-scan-btn');
+  if (s) s.style.display = 'block';
+  if (x) x.style.display = 'none';
+  const ind = document.getElementById('scan-indicator');
+  if (ind) ind.style.display = 'none';
+}
+
+async function processQR(text) {
+  // Show immediate visual feedback without stopping camera
+  const div = document.getElementById('scan-result');
+  div.style.display = 'block';
+  div.style.background = 'var(--green-light)';
+  div.style.borderColor = '#9FE1CB';
+  div.innerHTML = '<p style="color:var(--green-dark);font-size:0.9rem;font-weight:600">📷 QR terdeteksi — ⏳ Memproses...</p>';
+  div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  await checkAttendance(text);
+}
+
+async function manualCheck() {
+  const id = document.getElementById('manual-id').value.trim();
+  if (!id) return;
+  await checkAttendance(id);
+}
+
+async function checkAttendance(qrText) {
+  const div = document.getElementById('scan-result');
+  div.style.display = 'block';
+
+  // Check if URL is still placeholder
+  if (SCRIPT_URL.includes('GANTI_DENGAN_URL_ANDA')) {
+    div.style.background = '#FCEBEB'; div.style.borderColor = '#F7C1C1';
+    div.innerHTML = '<div class="scan-name">⚙️ URL Belum Dikonfigurasi</div>' +
+      '<div class="scan-detail">SCRIPT_URL di file index.html masih berisi placeholder.<br>Ganti dengan URL Apps Script Anda yang sebenarnya.</div>' +
+      '<span class="scan-badge badge-error">Setup Diperlukan</span>';
+    return;
+  }
+
+  try {
+    const url  = SCRIPT_URL + '?' + new URLSearchParams({ action: 'checkin', qr: qrText });
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      div.style.background = 'var(--green-light)'; div.style.borderColor = '#9FE1CB';
+      div.innerHTML =
+        '<div class="scan-name">✅ ' + data.nama + '</div>' +
+        '<div class="scan-detail">' + data.id + (data.pd ? '  •  ' + data.pd : '') + '</div>' +
+        '<span class="scan-badge badge-ok">Hadir Tercatat  •  ' + data.checkin_time + '</span>';
+    } else if (data.status === 'already') {
+      div.style.background = 'var(--amber-light)'; div.style.borderColor = '#FAC775';
+      div.innerHTML =
+        '<div class="scan-name">⚠️ ' + data.nama + '</div>' +
+        '<div class="scan-detail">' + data.id + '  •  Sudah scan: ' + data.checkin_time + '</div>' +
+        '<span class="scan-badge badge-already">Sudah Tercatat Sebelumnya</span>';
+    } else {
+      div.style.background = '#FCEBEB'; div.style.borderColor = '#F7C1C1';
+      div.innerHTML =
+        '<div class="scan-name">❌ QR / ID Tidak Valid</div>' +
+        '<div class="scan-detail">' + (data.message || 'Peserta tidak ditemukan') + '</div>' +
+        '<span class="scan-badge badge-error">Gagal</span>';
+    }
+    div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch(e) {
+    div.style.background = '#FCEBEB'; div.style.borderColor = '#F7C1C1';
+    div.innerHTML = '<div class="scan-name">❌ Gagal Terhubung</div>' +
+      '<div class="scan-detail">Periksa koneksi internet atau URL Apps Script Anda.<br><small style="color:#aaa">Detail: ' + e.message + '</small></div>' +
+      '<span class="scan-badge badge-error">Error</span>';
+    div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function showAlert(id, html, type) {
+  document.getElementById(id).innerHTML = '<div class="alert alert-' + type + '">' + html + '</div>';
+}
+function clearAlert(id) { document.getElementById(id).innerHTML = ''; }
+
+loadQuota();
+</script>
+</body>
+</html>
